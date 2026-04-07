@@ -140,6 +140,8 @@ function getPageTitle(path: string): string {
     '/expenses': 'Expense Management',
     '/statutory': 'Statutory Reports',
     '/announcements': 'Announcements',
+    '/fleet': 'Fleet Management',
+    '/documents': 'Document Hub',
     '/upload': 'Bulk Upload',
     '/settings': 'Settings',
   };
