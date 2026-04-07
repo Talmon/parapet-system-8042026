@@ -4,7 +4,7 @@ import {
   Briefcase, Receipt, FileText, Megaphone, Upload, Settings, BarChart3, Menu, Bell, X, Truck, FolderOpen
 } from 'lucide-react';
 import { useState } from 'react';
-import logo from '@/assets/parapet-logo-white.png';
+import logo from '@/assets/parapet-logo.png';
 
 const mainMenu = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
