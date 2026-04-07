@@ -161,6 +161,8 @@ function getPageSubtitle(path: string): string {
     '/expenses': 'Employee expense claims and reimbursements',
     '/statutory': 'Kenya Revenue Authority · SHIF · NSSF · Housing Levy',
     '/announcements': 'Company-wide announcements and updates',
+    '/fleet': 'Company vehicles, assignments & maintenance tracking',
+    '/documents': 'Central repository for company documents & policies',
     '/upload': 'Import employee data in bulk',
     '/settings': 'System configuration',
   };
