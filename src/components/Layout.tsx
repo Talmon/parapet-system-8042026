@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import logo from '@/assets/parapet-logo.png';
+import AskParapet from '@/components/AskParapet';
 
 const mainMenu = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -122,6 +123,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
+        <AskParapet />
       </div>
     </div>
   );
