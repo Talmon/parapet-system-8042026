@@ -16,6 +16,8 @@ import Expenses from "@/pages/Expenses";
 import StatutoryReports from "@/pages/StatutoryReports";
 import Announcements from "@/pages/Announcements";
 import BulkUpload from "@/pages/BulkUpload";
+import FleetManagement from "@/pages/FleetManagement";
+import DocumentHub from "@/pages/DocumentHub";
 import SettingsPage from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 
