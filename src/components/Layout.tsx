@@ -123,6 +123,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
+        <AskParapet />
       </div>
     </div>
   );
