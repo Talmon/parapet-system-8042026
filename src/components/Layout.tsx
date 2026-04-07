@@ -4,7 +4,7 @@ import {
   Briefcase, Receipt, FileText, Megaphone, Upload, Settings, BarChart3, Menu, Bell, X, Truck, FolderOpen
 } from 'lucide-react';
 import { useState } from 'react';
-import logo from '@/assets/parapet-logo-white.png';
+import logo from '@/assets/parapet-logo.png';
 
 const mainMenu = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -34,7 +34,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const SidebarContent = () => (
     <>
       <div className="p-4 flex items-center gap-3">
-        <img src={logo} alt="Parapet" className="h-10 w-auto rounded" />
+        <img src={logo} alt="Parapet" className="h-10 w-auto brightness-0 invert" />
       </div>
       <div className="px-4 mb-2">
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(var(--sidebar-muted))' }}>Main Menu</span>
