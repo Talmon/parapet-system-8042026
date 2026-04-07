@@ -1,10 +1,10 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, DollarSign, Calendar, Clock, Target,
-  Briefcase, Receipt, FileText, Megaphone, Upload, Settings, BarChart3, Menu, Bell, X
+  Briefcase, Receipt, FileText, Megaphone, Upload, Settings, BarChart3, Menu, Bell, X, Truck, FolderOpen
 } from 'lucide-react';
 import { useState } from 'react';
-import logo from '@/assets/parapet-logo.png';
+import logo from '@/assets/parapet-logo-white.png';
 
 const mainMenu = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -18,6 +18,8 @@ const mainMenu = [
   { to: '/expenses', label: 'Expenses', icon: Receipt },
   { to: '/statutory', label: 'Statutory Reports', icon: FileText },
   { to: '/announcements', label: 'Announcements', icon: Megaphone },
+  { to: '/fleet', label: 'Fleet Management', icon: Truck },
+  { to: '/documents', label: 'Document Hub', icon: FolderOpen },
   { to: '/upload', label: 'Bulk Upload', icon: Upload },
 ];
 
@@ -32,7 +34,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const SidebarContent = () => (
     <>
       <div className="p-4 flex items-center gap-3">
-        <img src={logo} alt="Parapet" className="h-10 w-auto brightness-0 invert" />
+        <img src={logo} alt="Parapet" className="h-10 w-auto rounded" />
       </div>
       <div className="px-4 mb-2">
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(var(--sidebar-muted))' }}>Main Menu</span>
@@ -138,6 +140,8 @@ function getPageTitle(path: string): string {
     '/expenses': 'Expense Management',
     '/statutory': 'Statutory Reports',
     '/announcements': 'Announcements',
+    '/fleet': 'Fleet Management',
+    '/documents': 'Document Hub',
     '/upload': 'Bulk Upload',
     '/settings': 'Settings',
   };
@@ -157,6 +161,8 @@ function getPageSubtitle(path: string): string {
     '/expenses': 'Employee expense claims and reimbursements',
     '/statutory': 'Kenya Revenue Authority · SHIF · NSSF · Housing Levy',
     '/announcements': 'Company-wide announcements and updates',
+    '/fleet': 'Company vehicles, assignments & maintenance tracking',
+    '/documents': 'Central repository for company documents & policies',
     '/upload': 'Import employee data in bulk',
     '/settings': 'System configuration',
   };

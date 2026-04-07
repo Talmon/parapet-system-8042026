@@ -16,6 +16,8 @@ import Expenses from "@/pages/Expenses";
 import StatutoryReports from "@/pages/StatutoryReports";
 import Announcements from "@/pages/Announcements";
 import BulkUpload from "@/pages/BulkUpload";
+import FleetManagement from "@/pages/FleetManagement";
+import DocumentHub from "@/pages/DocumentHub";
 import SettingsPage from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 
@@ -39,7 +41,10 @@ const App = () => (
           <Route path="/expenses" element={<Layout><Expenses /></Layout>} />
           <Route path="/statutory" element={<Layout><StatutoryReports /></Layout>} />
           <Route path="/announcements" element={<Layout><Announcements /></Layout>} />
+          <Route path="/fleet" element={<Layout><FleetManagement /></Layout>} />
+          <Route path="/documents" element={<Layout><DocumentHub /></Layout>} />
           <Route path="/upload" element={<Layout><BulkUpload /></Layout>} />
+          <Route path="/settings" element={<Layout><SettingsPage /></Layout>} />
           <Route path="/settings" element={<Layout><SettingsPage /></Layout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
