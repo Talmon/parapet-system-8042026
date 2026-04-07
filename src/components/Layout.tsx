@@ -18,6 +18,8 @@ const mainMenu = [
   { to: '/expenses', label: 'Expenses', icon: Receipt },
   { to: '/statutory', label: 'Statutory Reports', icon: FileText },
   { to: '/announcements', label: 'Announcements', icon: Megaphone },
+  { to: '/fleet', label: 'Fleet Management', icon: Truck },
+  { to: '/documents', label: 'Document Hub', icon: FolderOpen },
   { to: '/upload', label: 'Bulk Upload', icon: Upload },
 ];
 
