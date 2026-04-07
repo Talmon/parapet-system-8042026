@@ -41,7 +41,10 @@ const App = () => (
           <Route path="/expenses" element={<Layout><Expenses /></Layout>} />
           <Route path="/statutory" element={<Layout><StatutoryReports /></Layout>} />
           <Route path="/announcements" element={<Layout><Announcements /></Layout>} />
+          <Route path="/fleet" element={<Layout><FleetManagement /></Layout>} />
+          <Route path="/documents" element={<Layout><DocumentHub /></Layout>} />
           <Route path="/upload" element={<Layout><BulkUpload /></Layout>} />
+          <Route path="/settings" element={<Layout><SettingsPage /></Layout>} />
           <Route path="/settings" element={<Layout><SettingsPage /></Layout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
