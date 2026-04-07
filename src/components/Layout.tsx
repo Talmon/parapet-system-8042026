@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import logo from '@/assets/parapet-logo.png';
+import AskParapet from '@/components/AskParapet';
 
 const mainMenu = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
