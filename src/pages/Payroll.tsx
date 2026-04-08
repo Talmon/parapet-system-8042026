@@ -1,17 +1,45 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { activeEmployees, permanentStaff, consultants, payrollSummary, formatCurrency } from '@/data/hrData';
-import { CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, Plus, Pencil, Trash2, Eye, X, FileText } from 'lucide-react';
+import ProcessGuide from '@/components/ProcessGuide';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+
+const payrollWorkflowSteps = [
+  { step: 1, title: 'Review Active Employees', who: 'HR Manager', description: 'Verify employee roster — confirm active staff, new joiners, resignations, and changes for the period.' },
+  { step: 2, title: 'Capture Variable Pay & Deductions', who: 'HR Manager', description: 'Record overtime, allowances, commissions, loan deductions, HELB repayments, and advances.' },
+  { step: 3, title: 'Calculate Payroll', who: 'System', description: 'System computes gross pay, PAYE (tax bands), SHIF, NSSF, Housing Levy, and net pay for each employee.' },
+  { step: 4, title: 'Payroll Approval', who: 'Admin', description: 'CFO or designated approver reviews the payroll run summary and gives approval to process.' },
+  { step: 5, title: 'Bank Payment Processing', who: 'Finance', description: 'Approved payroll is submitted to the bank for direct credit to employee accounts.' },
+  { step: 6, title: 'Payslip Distribution', who: 'HR Manager', description: 'Payslips are generated and distributed electronically to employees via email or HRMIS portal.' },
+  { step: 7, title: 'Statutory Remittance', who: 'Finance', description: 'PAYE, SHIF, NSSF, and Housing Levy are remitted to respective authorities by the deadline.' },
+  { step: 8, title: 'Reconciliation & Reporting', who: 'HR Manager', description: 'Payroll is reconciled against bank statements and reports are filed for audit purposes.' },
+];
 
 const steps = ['Review Employees', 'Calculate Payroll', 'Approve', 'Process Payment'];
 
 export default function Payroll() {
+  const { hasRole } = useAuth();
+  const canProcess = hasRole('admin', 'hr_manager');
   const [currentStep, setCurrentStep] = useState(0);
   const navigate = useNavigate();
   const activeCount = activeEmployees.length;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <ProcessGuide
+        title="Payroll Processing"
+        description="8-step monthly payroll cycle from employee review to statutory remittance"
+        steps={payrollWorkflowSteps}
+        tips={[
+          'Payroll must be locked by the 25th of each month for timely bank transfer.',
+          'Any salary changes must be communicated to HR by the 20th.',
+          'PAYE remittance deadline: 9th of the following month.',
+          'NSSF, SHIF, and Housing Levy are all due by the 9th of the following month.',
+          'Keep copies of all payroll approvals for a minimum of 7 years.',
+        ]}
+      />
       {/* Stepper */}
       <div className="bg-card rounded-lg border p-6">
         <div className="flex items-center justify-between mb-4">

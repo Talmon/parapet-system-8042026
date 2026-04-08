@@ -3,10 +3,27 @@ import {
   attendanceRecords, biometricEnrollments, attendancePolicies, overtimeEntries, monthlySummaries,
   type AttendanceRecord, type OvertimeEntry
 } from '@/data/attendanceData';
-import { Clock, Users, AlertTriangle, CheckCircle, Fingerprint, Shield, Timer, TrendingUp, X } from 'lucide-react';
+import { Clock, Users, AlertTriangle, CheckCircle, Fingerprint, Shield, Timer, TrendingUp, X, Plus, Pencil, Trash2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import ProcessGuide from '@/components/ProcessGuide';
+import { useAuth } from '@/contexts/AuthContext';
+
+const attendanceWorkflowSteps = [
+  { step: 1, title: 'Biometric Enrolment', who: 'HR Manager', description: 'All employees and operations staff are enrolled in the biometric system (fingerprint/face ID) at their work location.' },
+  { step: 2, title: 'Time In / Time Out Registration', who: 'Employee', description: 'Each workday, employees clock in and out using the biometric device or mobile app.' },
+  { step: 3, title: 'Operations Attendance in Station', who: 'Supervisor', description: 'For field/station staff, supervisors mark attendance via the system or app and verify physical presence.' },
+  { step: 4, title: 'Real-Time Attendance Capture', who: 'System', description: 'The system captures timestamps, location data, and attendance status in real time.' },
+  { step: 5, title: 'Data Synchronization', who: 'System', description: 'Attendance data from all devices and locations is synchronized to the central HRMIS every hour.' },
+  { step: 6, title: 'Attendance Monitoring', who: 'Supervisor', description: 'Supervisors review daily attendance dashboards and follow up on absences or late arrivals.' },
+  { step: 7, title: 'Attendance Policy Validation', who: 'System', description: 'The system automatically flags policy violations (late arrivals, early departures, consecutive absences).' },
+  { step: 8, title: 'Leave & Absence Handling', who: 'HR Manager', description: 'Approved leave is reconciled against attendance data; unexplained absences trigger an alert.' },
+  { step: 9, title: 'Overtime & Payroll Processing', who: 'HR Manager', description: 'Overtime hours are extracted, approved by supervisors, and fed into payroll for computation.' },
+  { step: 10, title: 'Reporting & Analytics', who: 'HR Manager', description: 'Monthly attendance reports are generated for HR, management, and statutory compliance purposes.' },
+];
 
 export default function Attendance() {
+  const { hasRole } = useAuth();
+  const canManage = hasRole('admin', 'hr_manager', 'supervisor');
   const [tab, setTab] = useState<'daily' | 'enrollment' | 'policies' | 'overtime' | 'reports'>('daily');
   const [selectedDate, setSelectedDate] = useState('2026-04-07');
   const [filterDept, setFilterDept] = useState('All');
@@ -44,6 +61,18 @@ export default function Attendance() {
 
   return (
     <div className="space-y-6">
+      <ProcessGuide
+        title="Attendance Management"
+        description="10-step process from biometric enrolment to payroll & analytics"
+        steps={attendanceWorkflowSteps}
+        tips={[
+          'Biometric enrolment must be completed before an employee can clock in.',
+          'Operations staff must be marked by supervisor if no biometric device is available on site.',
+          'Three consecutive unexplained absences trigger an automatic HR alert.',
+          'Overtime must be pre-approved; unapproved overtime cannot be paid.',
+          'Monthly attendance reports feed directly into payroll computation.',
+        ]}
+      />
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-card"><div><p className="stat-label">Present Today</p><p className="stat-value">{present.length}</p></div><CheckCircle size={22} className="text-green-600" /></div>

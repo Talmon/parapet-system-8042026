@@ -3,8 +3,22 @@ import {
   initialLeaveRequests, leaveBalances, leaveTypes, annualLeaveSchedules,
   type LeaveRequest, type LeaveApprovalStage
 } from '@/data/leaveData';
-import { CheckCircle, XCircle, Plus, X, Calendar, Clock, Users, AlertTriangle, RotateCcw, FileText, ArrowRight } from 'lucide-react';
+import { CheckCircle, XCircle, Plus, X, Calendar, Clock, Users, AlertTriangle, RotateCcw, FileText, ArrowRight, Pencil, Trash2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import ProcessGuide from '@/components/ProcessGuide';
+import { useAuth } from '@/contexts/AuthContext';
+
+const leaveWorkflowSteps = [
+  { step: 1, title: 'Prepare Annual Leave Schedule', who: 'Employee', description: 'At the start of the financial year, employees plan and submit their annual leave schedule for the year.', tip: 'Submit schedules early so team planning can happen without conflicts.' },
+  { step: 2, title: 'Submit Leave Request', who: 'Employee', description: 'Employee submits a specific leave request with dates, reason, reliever, and handover notes.' },
+  { step: 3, title: 'Supervisor Review & Approval', who: 'Supervisor', description: 'Immediate supervisor reviews the request, checks team coverage, and approves or rejects.', tip: 'Supervisor must ensure a reliever is confirmed before approving.' },
+  { step: 4, title: 'HRBP Review', who: 'HRBP', description: 'HR Business Partner reviews leave allowance entitlement, policy compliance, and confirms the request.' },
+  { step: 5, title: 'HR Head Final Approval', who: 'HR Head', description: 'Group Head of HR gives the final green light, especially for long or unusual leave durations.' },
+  { step: 6, title: 'Process Leave Allowance', who: 'HR Manager', description: 'HR processes any applicable leave allowance payment and updates payroll records.' },
+  { step: 7, title: 'Employee Handover & Goes on Leave', who: 'Employee', description: 'Employee completes handover with reliever and officially starts leave.' },
+  { step: 8, title: 'Recall (If Needed)', who: 'Supervisor', description: 'If operational demands require it, supervisor can recall the employee from leave with a documented reason.', branch: { condition: 'Recall needed', yes: 'Employee returns, remaining days preserved', no: 'Leave continues to planned end date' } },
+  { step: 9, title: 'Update Records & Analytics', who: 'System', description: 'Leave balances are updated, records finalized, and reports generated for HR analytics.' },
+];
 
 const stageLabels: Record<LeaveApprovalStage, string> = {
   submitted: 'Submitted', supervisor_approved: 'Supervisor Approved', hrbp_reviewed: 'HRBP Reviewed',
@@ -14,6 +28,10 @@ const stageOrder: LeaveApprovalStage[] = ['submitted', 'supervisor_approved', 'h
 const stageIdx = (s: LeaveApprovalStage) => stageOrder.indexOf(s);
 
 export default function LeaveManagement() {
+  const { hasRole, user } = useAuth();
+  const canManage = hasRole('admin', 'hr_manager', 'supervisor');
+  const canApprove = hasRole('admin', 'hr_manager', 'supervisor');
+  const isEmployee = hasRole('employee');
   const [tab, setTab] = useState<'requests' | 'balances' | 'schedule' | 'types'>('requests');
   const [requests, setRequests] = useState<LeaveRequest[]>(initialLeaveRequests);
   const [showNew, setShowNew] = useState(false);
@@ -95,6 +113,19 @@ export default function LeaveManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Process Guide */}
+      <ProcessGuide
+        title="Leave Management"
+        description="Full 9-step workflow from leave planning to return and record update"
+        steps={leaveWorkflowSteps}
+        tips={[
+          'Annual leave schedules should be submitted in the first week of the financial year.',
+          'Leave requests must be submitted at least 7 days in advance for planned leave.',
+          'Supervisor must confirm reliever before approving any leave.',
+          'Sick leave beyond 3 days requires a medical certificate.',
+          'Recalled employees have their remaining leave days preserved for future use.',
+        ]}
+      />
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-card"><div><p className="stat-label">Pending Approvals</p><p className="stat-value">{pending.length}</p></div><Clock size={22} className="text-amber-500" /></div>
@@ -112,7 +143,7 @@ export default function LeaveManagement() {
             </button>
           ))}
         </div>
-        {tab === 'requests' && <button onClick={() => setShowNew(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium"><Plus size={16} /> New Request</button>}
+        <button onClick={() => setShowNew(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium"><Plus size={16} /> New Request</button>
       </div>
 
       {/* LEAVE REQUESTS */}
@@ -151,10 +182,22 @@ export default function LeaveManagement() {
                       {r.recalled ? <span className="badge-rejected inline-flex items-center gap-1"><RotateCcw size={10} /> Recalled</span> : <span className={r.stage === 'approved' ? 'badge-active' : r.stage === 'rejected' ? 'badge-rejected' : 'badge-pending'}>{stageLabels[r.stage]}</span>}
                     </td>
                     <td>
-                      <div className="flex gap-1">
-                        <button onClick={() => setSelectedRequest(r)} className="text-xs px-2 py-1 rounded border hover:bg-muted">View</button>
-                        {r.stage === 'approved' && !r.recalled && (
-                          <button onClick={() => setShowRecall(r)} className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200">Recall</button>
+                      <div className="flex gap-1 flex-wrap">
+                        <button onClick={() => setSelectedRequest(r)} className="text-xs px-2 py-1 rounded border hover:bg-muted inline-flex items-center gap-1"><Eye size={11} /> View</button>
+                        {canManage && r.stage === 'submitted' && (
+                          <button onClick={() => setSelectedRequest(r)} className="text-xs px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 inline-flex items-center gap-1"><Pencil size={11} /> Edit</button>
+                        )}
+                        {canApprove && !['approved', 'rejected', 'cancelled'].includes(r.stage) && (
+                          <button onClick={() => advanceRequest(r.id)} className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 inline-flex items-center gap-1"><ArrowRight size={11} /> Advance</button>
+                        )}
+                        {canApprove && !['approved', 'rejected', 'cancelled'].includes(r.stage) && (
+                          <button onClick={() => rejectRequest(r.id)} className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 inline-flex items-center gap-1"><XCircle size={11} /> Reject</button>
+                        )}
+                        {canManage && r.stage === 'approved' && !r.recalled && (
+                          <button onClick={() => setShowRecall(r)} className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700 hover:bg-amber-200 inline-flex items-center gap-1"><RotateCcw size={11} /> Recall</button>
+                        )}
+                        {hasRole('admin', 'hr_manager') && ['rejected', 'cancelled'].includes(r.stage) && (
+                          <button onClick={() => { setRequests(prev => prev.filter(x => x.id !== r.id)); toast.success('Request deleted'); }} className="text-xs px-2 py-1 rounded bg-red-50 text-red-500 hover:bg-red-100 inline-flex items-center gap-1"><Trash2 size={11} /> Delete</button>
                         )}
                       </div>
                     </td>

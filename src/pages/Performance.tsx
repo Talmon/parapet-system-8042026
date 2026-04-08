@@ -3,8 +3,25 @@ import {
   companyGoals, departmentGoals, individualTargets, initialAppraisals, checkIns, initialPIPs, appraisalStages,
   type Appraisal, type AppraisalStage, type PIP
 } from '@/data/performanceData';
-import { Star, ChevronRight, X, Plus, AlertTriangle, TrendingUp, Award, BookOpen, CheckCircle, Clock, ArrowRight } from 'lucide-react';
+import { Star, ChevronRight, X, Plus, AlertTriangle, TrendingUp, Award, BookOpen, CheckCircle, Clock, ArrowRight, Pencil, Trash2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import ProcessGuide from '@/components/ProcessGuide';
+import { useAuth } from '@/contexts/AuthContext';
+
+const performanceWorkflowSteps = [
+  { step: 1, title: 'Company & Department Goals Set', who: 'HOD', description: 'At the start of the financial year, company and department goals are cascaded down from leadership.', tip: 'Goals should be SMART — Specific, Measurable, Achievable, Relevant, Time-bound.' },
+  { step: 2, title: 'Individual Targets Set', who: 'Supervisor', description: 'Week 1 of the FY: managers set individual performance targets linked to department goals.' },
+  { step: 3, title: 'Continuous Performance Tracking', who: 'System', description: 'The HRMIS tracks KPIs, task completion, and performance indicators throughout the quarter.' },
+  { step: 4, title: 'Regular Check-ins', who: 'Supervisor', description: 'Scheduled one-on-ones between employee and supervisor to review progress and address blockers.' },
+  { step: 5, title: 'Appraisal Forms Issued', who: 'HR Manager', description: 'At end of quarter, HR issues formal appraisal forms to all employees and managers.' },
+  { step: 6, title: 'Employee Self-Assessment', who: 'Employee', description: 'Employee completes a self-assessment scoring their own performance against targets.' },
+  { step: 7, title: 'Manager/HOD Evaluation', who: 'HOD', description: 'Week 1 of new quarter: manager evaluates employee, reviews self-assessment, and provides scores.' },
+  { step: 8, title: 'HOD Approval & Submission to HR', who: 'HOD', description: 'Head of Department validates all evaluations for their team and submits to HR.' },
+  { step: 9, title: 'HR Processing', who: 'HR Manager', description: 'HR collates all appraisals, checks for bias, normalizes scores, and prepares the final results.' },
+  { step: 10, title: 'Results Presented to HODs/TM', who: 'HR Manager', description: 'HR presents performance results to HODs and Top Management for review and decisions.' },
+  { step: 11, title: 'Performance Decision', who: 'HOD', description: 'Based on results, a performance decision is made for each employee.', branch: { condition: 'Meeting targets', yes: 'Reward Employee (bonus, increment, recognition)', no: 'Corrective Action — PIP or Training Plan' } },
+  { step: 12, title: 'Implement Decision & Monitor', who: 'HR Manager', description: 'HR implements the decision (processes reward or initiates PIP), then monitors progress in the next cycle.' },
+];
 
 const stageIndex = (s: AppraisalStage) => appraisalStages.findIndex(x => x.key === s);
 
@@ -21,6 +38,8 @@ const decisionIcons: Record<string, React.ReactNode> = {
 };
 
 export default function Performance() {
+  const { hasRole } = useAuth();
+  const canManage = hasRole('admin', 'hr_manager', 'supervisor');
   const [tab, setTab] = useState<'pipeline' | 'goals' | 'appraisals' | 'checkins' | 'pips'>('pipeline');
   const [appraisals, setAppraisals] = useState<Appraisal[]>(initialAppraisals);
   const [pips, setPips] = useState<PIP[]>(initialPIPs);
@@ -56,6 +75,18 @@ export default function Performance() {
 
   return (
     <div className="space-y-6">
+      <ProcessGuide
+        title="Performance Management"
+        description="12-step quarterly review cycle from goal setting to rewards or corrective action"
+        steps={performanceWorkflowSteps}
+        tips={[
+          'Individual targets must be set in Week 1 of the financial year.',
+          'Self-assessments should be completed before manager evaluation.',
+          'All ratings are normalized by HR to prevent biased scoring.',
+          'PIP duration is typically 60-90 days with weekly check-ins.',
+          'Rewards are processed through payroll after Top Management approval.',
+        ]}
+      />
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-card"><div><p className="stat-label">Appraisals Completed</p><p className="stat-value">{completed.length}/{appraisals.length}</p></div><CheckCircle size={22} className="text-green-600" /></div>

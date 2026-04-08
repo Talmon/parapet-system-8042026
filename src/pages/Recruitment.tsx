@@ -3,8 +3,24 @@ import {
   initialRequisitions, initialCandidates, initialInterviews, candidateStages,
   type Requisition, type Candidate, type InterviewPanel, type CandidateStage
 } from '@/data/recruitmentData';
-import { Plus, X, Users, Briefcase, Clock, CheckCircle, ChevronRight, Star, FileText, Phone, Mail, Building2 } from 'lucide-react';
+import { Plus, X, Users, Briefcase, Clock, CheckCircle, ChevronRight, Star, FileText, Phone, Mail, Building2, Pencil, Trash2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import ProcessGuide from '@/components/ProcessGuide';
+import { useAuth } from '@/contexts/AuthContext';
+
+const recruitmentWorkflowSteps = [
+  { step: 1, title: 'Update Manpower Plan', who: 'HOD', description: 'Department head identifies a vacancy or new position requirement and updates the manpower plan.' },
+  { step: 2, title: 'Raise Requisition', who: 'HOD', description: 'An official job requisition is raised in the system with position details, grade, and budget justification.' },
+  { step: 3, title: 'Review Job Profile', who: 'HR Manager', description: 'HR reviews and updates the job description, required qualifications, and competencies for the position.' },
+  { step: 4, title: 'Determine Fill Method', who: 'HR Manager', description: 'HR decides whether to source internally, externally, or both (referrals, job boards, agencies, HRMIS).', branch: { condition: 'Internal candidate available', yes: 'Post internally first', no: 'External sourcing via job boards & agencies' } },
+  { step: 5, title: 'Source & Screen Candidates', who: 'HR Manager', description: 'Applications are collected, initial screening done against minimum requirements, and a shortlist prepared.' },
+  { step: 6, title: 'Select Panel & Schedule Interviews', who: 'HR Manager', description: 'An interview panel is constituted (HOD + HR + Technical Lead) and interviews are scheduled.' },
+  { step: 7, title: 'Conduct Interviews & Evaluate', who: 'HOD', description: 'Panel conducts structured interviews and scores candidates against a standardized evaluation form.' },
+  { step: 8, title: 'Select Best Candidate', who: 'HOD', description: 'Panel deliberates and selects the best candidate. All candidates are informed of outcomes.' },
+  { step: 9, title: 'Background Check', who: 'HR Manager', description: 'Reference checks, academic verification, and criminal background checks are completed.' },
+  { step: 10, title: 'Negotiate Terms', who: 'HR Manager', description: 'HR negotiates salary and employment terms with the selected candidate.', branch: { condition: 'Candidate accepts terms', yes: 'Issue Appointment Letter/Contract', no: 'Propose revised terms or move to next best candidate' } },
+  { step: 11, title: 'Onboarding & HRMIS Update', who: 'HR Manager', description: 'Appointment letter is signed, employee record is created in HRMIS, and onboarding is initiated.' },
+];
 
 const reqStatusColors: Record<string, string> = {
   draft: 'badge-pending', pending_approval: 'badge-pending', approved: 'badge-info', sourcing: 'badge-info',
@@ -25,6 +41,8 @@ const kanbanColumns: { key: CandidateStage; label: string; color: string }[] = [
 ];
 
 export default function Recruitment() {
+  const { hasRole } = useAuth();
+  const canManage = hasRole('admin', 'hr_manager');
   const [tab, setTab] = useState<'requisitions' | 'pipeline' | 'candidates' | 'interviews'>('requisitions');
   const [requisitions, setRequisitions] = useState<Requisition[]>(initialRequisitions);
   const [candidates, setCandidates] = useState<Candidate[]>(initialCandidates);
@@ -84,6 +102,18 @@ export default function Recruitment() {
 
   return (
     <div className="space-y-6">
+      <ProcessGuide
+        title="Recruitment"
+        description="11-step hiring process from manpower planning to onboarding"
+        steps={recruitmentWorkflowSteps}
+        tips={[
+          'All requisitions must reference an approved position in the manpower plan.',
+          'Internal candidates get 1 week head start before external posting.',
+          'Interview panels must have at least 3 members including the HOD.',
+          'Background checks are mandatory for all management positions.',
+          'Offer letters must be issued within 5 working days of candidate acceptance.',
+        ]}
+      />
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-card"><div><p className="stat-label">Active Requisitions</p><p className="stat-value">{activeReqs.length}</p></div><Briefcase size={22} className="text-blue-600" /></div>

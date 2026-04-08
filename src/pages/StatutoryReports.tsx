@@ -1,6 +1,19 @@
 import { useNavigate } from 'react-router-dom';
 import { payrollSummary, formatCurrency } from '@/data/hrData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import ProcessGuide from '@/components/ProcessGuide';
+import { useAuth } from '@/contexts/AuthContext';
+import { Download, FileText, Plus } from 'lucide-react';
+
+const statutoryWorkflowSteps = [
+  { step: 1, title: 'Run Monthly Payroll', who: 'HR Manager', description: 'Payroll is processed and all statutory deductions (PAYE, SHIF, NSSF, Housing Levy) are computed.' },
+  { step: 2, title: 'Generate Statutory Returns', who: 'System', description: 'HRMIS generates statutory return files in the required format for each authority (KRA, NSSF, SHIF).' },
+  { step: 3, title: 'Review & Verify', who: 'HR Manager', description: 'Finance and HR review the statutory figures against payroll for accuracy before submission.' },
+  { step: 4, title: 'Submit to Authorities', who: 'Finance', description: 'Returns are filed electronically: PAYE via KRA iTax, NSSF via NSSF portal, SHIF via SHIF portal.' },
+  { step: 5, title: 'Make Payments', who: 'Finance', description: 'Payments are made via bank transfer to KRA, NSSF, and SHIF by the respective deadlines (9th of following month).' },
+  { step: 6, title: 'Obtain & File Receipts', who: 'Finance', description: 'Payment receipts and filing confirmations are obtained and stored for audit purposes.' },
+  { step: 7, title: 'Annual Returns (P10)', who: 'Finance', description: 'Annual P10 return filed with KRA by 9th of May for the preceding year.' },
+];
 
 const months = ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'];
 const trendData = months.map((m, i) => {
@@ -24,8 +37,23 @@ export default function StatutoryReports() {
     { label: 'Housing Levy', value: payrollSummary.housing, sub: '1.5% employee + 1.5% employer', due: 'Due: 9th May 2026' },
   ];
 
+  const { hasRole } = useAuth();
+  const canManage = hasRole('admin', 'hr_manager');
+
   return (
     <div className="space-y-6">
+      <ProcessGuide
+        title="Statutory Reports"
+        description="7-step compliance cycle from payroll computation to annual P10 filing"
+        steps={statutoryWorkflowSteps}
+        tips={[
+          'PAYE, SHIF, NSSF, and Housing Levy are all due by the 9th of the following month.',
+          'Annual P10 return must be filed by 9th May for the preceding tax year.',
+          'Keep payment receipts for a minimum of 10 years for audit purposes.',
+          'Use the KRA iTax portal for PAYE and P10 submissions.',
+          'Late submissions attract penalties — set calendar reminders for all deadlines.',
+        ]}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c, i) => (
           <div key={i} className="stat-card" onClick={() => navigate('/payroll')}>

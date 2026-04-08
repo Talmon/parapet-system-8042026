@@ -1,13 +1,15 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, DollarSign, Calendar, Clock, Target,
-  Briefcase, Receipt, FileText, Megaphone, Upload, Settings, BarChart3, Menu, Bell, X, Truck, FolderOpen
+  Briefcase, Receipt, FileText, Megaphone, Upload, Settings, BarChart3, Menu, Bell, X, Truck, FolderOpen, LogOut, ChevronDown
 } from 'lucide-react';
 import { useState } from 'react';
 import logo from '@/assets/parapet-logo.png';
 import AskParapet from '@/components/AskParapet';
+import { useAuth, ROLE_LABELS, ROLE_COLORS, NAV_PERMISSIONS } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
-const mainMenu = [
+const allMainMenu = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/employees', label: 'Employee Directory', icon: Users },
   { to: '/payroll', label: 'Payroll Processing', icon: DollarSign },
@@ -30,7 +32,30 @@ const systemMenu = [
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout, canAccess } = useAuth();
+
+  const mainMenu = allMainMenu.filter(item => {
+    const allowed = NAV_PERMISSIONS[item.to];
+    if (!allowed || !user) return false;
+    return allowed.includes(user.role);
+  });
+
+  const filteredSystemMenu = systemMenu.filter(item => {
+    const allowed = NAV_PERMISSIONS[item.to];
+    if (!allowed || !user) return false;
+    return allowed.includes(user.role);
+  });
+
+  const handleLogout = () => {
+    logout();
+    toast.success('Logged out successfully');
+    navigate('/login');
+  };
+
+  const roleColor = user ? ROLE_COLORS[user.role] : 'bg-primary';
 
   const SidebarContent = () => (
     <>
@@ -53,23 +78,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {item.label}
           </NavLink>
         ))}
-        <div className="pt-4 pb-2 px-2">
-          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(var(--sidebar-muted))' }}>System</span>
-        </div>
-        {systemMenu.map(item => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            onClick={() => setSidebarOpen(false)}
-          >
-            <item.icon size={18} />
-            {item.label}
-          </NavLink>
-        ))}
+        {filteredSystemMenu.length > 0 && (
+          <>
+            <div className="pt-4 pb-2 px-2">
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(var(--sidebar-muted))' }}>System</span>
+            </div>
+            {filteredSystemMenu.map(item => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <item.icon size={18} />
+                {item.label}
+              </NavLink>
+            ))}
+          </>
+        )}
       </nav>
-      <div className="p-4 text-xs" style={{ color: 'hsl(var(--sidebar-muted))' }}>
-        Parapet HRMS v2.0 © 2026
+      {/* User profile in sidebar */}
+      <div className="p-3 border-t border-white/10">
+        <div className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer" onClick={handleLogout}>
+          <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${roleColor}`}>
+            {user?.avatar}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold truncate" style={{ color: 'hsl(var(--sidebar-fg))' }}>{user?.name}</p>
+            <p className="text-xs opacity-60 truncate" style={{ color: 'hsl(var(--sidebar-muted))' }}>{user ? ROLE_LABELS[user.role] : ''}</p>
+          </div>
+          <LogOut size={14} style={{ color: 'hsl(var(--sidebar-muted))' }} />
+        </div>
       </div>
     </>
   );
@@ -111,15 +150,46 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Bell size={20} className="text-muted-foreground" />
               <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-bold">3</span>
             </button>
-            <div className="flex items-center gap-2">
-              <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-bold">HR</div>
-              <div className="hidden sm:block">
-                <p className="text-sm font-medium">HR Admin</p>
-                <p className="text-xs text-muted-foreground">admin@parapet.co.ke</p>
-              </div>
+            {/* User menu */}
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen(v => !v)}
+                className="flex items-center gap-2 p-1 rounded-lg hover:bg-muted transition-colors"
+              >
+                <div className={`h-9 w-9 rounded-full flex items-center justify-center text-white text-sm font-bold ${roleColor}`}>
+                  {user?.avatar}
+                </div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-sm font-medium leading-tight">{user?.name}</p>
+                  <p className="text-xs text-muted-foreground leading-tight">{user ? ROLE_LABELS[user.role] : ''}</p>
+                </div>
+                <ChevronDown size={14} className="hidden sm:block text-muted-foreground" />
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border bg-card shadow-lg z-50 overflow-hidden">
+                  <div className="p-3 border-b">
+                    <p className="text-sm font-semibold">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                    <p className="text-xs text-muted-foreground">{user?.department} · {user?.employeeId}</p>
+                  </div>
+                  <div className="p-1">
+                    <button
+                      onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                    >
+                      <LogOut size={15} />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
+        {/* Click outside to close user menu */}
+        {userMenuOpen && <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />}
+
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
@@ -147,13 +217,14 @@ function getPageTitle(path: string): string {
     '/upload': 'Bulk Upload',
     '/settings': 'Settings',
   };
+  if (path.startsWith('/employees/')) return 'Employee Profile';
   return map[path] || 'Parapet HRMS';
 }
 
 function getPageSubtitle(path: string): string {
   const map: Record<string, string> = {
     '/': 'April 2026 · Payroll Period Overview',
-    '/employees': `5,000 employees`,
+    '/employees': '5,000 employees across all departments',
     '/payroll': 'April 2026 Payroll Run',
     '/leave': 'Track and manage employee leave requests',
     '/attendance': 'Daily attendance records and overtime',
@@ -166,7 +237,7 @@ function getPageSubtitle(path: string): string {
     '/fleet': 'Company vehicles, assignments & maintenance tracking',
     '/documents': 'Central repository for company documents & policies',
     '/upload': 'Import employee data in bulk',
-    '/settings': 'System configuration',
+    '/settings': 'System configuration and preferences',
   };
   return map[path] || '';
 }

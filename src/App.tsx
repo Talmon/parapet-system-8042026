@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
+import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Employees from "@/pages/Employees";
 import EmployeeDetail from "@/pages/EmployeeDetail";
@@ -23,31 +25,47 @@ import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function ProtectedRoute({ children, path }: { children: React.ReactNode; path: string }) {
+  const { isAuthenticated, canAccess } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!canAccess(path)) return <Navigate to="/" replace />;
+  return <Layout>{children}</Layout>;
+}
+
+function AppRoutes() {
+  const { isAuthenticated } = useAuth();
+  return (
+    <Routes>
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/" element={<ProtectedRoute path="/"><Dashboard /></ProtectedRoute>} />
+      <Route path="/employees" element={<ProtectedRoute path="/employees"><Employees /></ProtectedRoute>} />
+      <Route path="/employees/:id" element={<ProtectedRoute path="/employees"><EmployeeDetail /></ProtectedRoute>} />
+      <Route path="/payroll" element={<ProtectedRoute path="/payroll"><Payroll /></ProtectedRoute>} />
+      <Route path="/leave" element={<ProtectedRoute path="/leave"><LeaveManagement /></ProtectedRoute>} />
+      <Route path="/attendance" element={<ProtectedRoute path="/attendance"><Attendance /></ProtectedRoute>} />
+      <Route path="/performance" element={<ProtectedRoute path="/performance"><Performance /></ProtectedRoute>} />
+      <Route path="/kpis" element={<ProtectedRoute path="/kpis"><KPIManagement /></ProtectedRoute>} />
+      <Route path="/recruitment" element={<ProtectedRoute path="/recruitment"><Recruitment /></ProtectedRoute>} />
+      <Route path="/expenses" element={<ProtectedRoute path="/expenses"><Expenses /></ProtectedRoute>} />
+      <Route path="/statutory" element={<ProtectedRoute path="/statutory"><StatutoryReports /></ProtectedRoute>} />
+      <Route path="/announcements" element={<ProtectedRoute path="/announcements"><Announcements /></ProtectedRoute>} />
+      <Route path="/fleet" element={<ProtectedRoute path="/fleet"><FleetManagement /></ProtectedRoute>} />
+      <Route path="/documents" element={<ProtectedRoute path="/documents"><DocumentHub /></ProtectedRoute>} />
+      <Route path="/upload" element={<ProtectedRoute path="/upload"><BulkUpload /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute path="/settings"><SettingsPage /></ProtectedRoute>} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout><Dashboard /></Layout>} />
-          <Route path="/employees" element={<Layout><Employees /></Layout>} />
-          <Route path="/employees/:id" element={<Layout><EmployeeDetail /></Layout>} />
-          <Route path="/payroll" element={<Layout><Payroll /></Layout>} />
-          <Route path="/leave" element={<Layout><LeaveManagement /></Layout>} />
-          <Route path="/attendance" element={<Layout><Attendance /></Layout>} />
-          <Route path="/performance" element={<Layout><Performance /></Layout>} />
-          <Route path="/kpis" element={<Layout><KPIManagement /></Layout>} />
-          <Route path="/recruitment" element={<Layout><Recruitment /></Layout>} />
-          <Route path="/expenses" element={<Layout><Expenses /></Layout>} />
-          <Route path="/statutory" element={<Layout><StatutoryReports /></Layout>} />
-          <Route path="/announcements" element={<Layout><Announcements /></Layout>} />
-          <Route path="/fleet" element={<Layout><FleetManagement /></Layout>} />
-          <Route path="/documents" element={<Layout><DocumentHub /></Layout>} />
-          <Route path="/upload" element={<Layout><BulkUpload /></Layout>} />
-          <Route path="/settings" element={<Layout><SettingsPage /></Layout>} />
-          <Route path="/settings" element={<Layout><SettingsPage /></Layout>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

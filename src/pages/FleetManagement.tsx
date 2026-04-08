@@ -3,12 +3,30 @@ import {
   initialVehicles, initialDrivers, initialRequests, initialTrips, initialFuelLogs, initialMaintenance, initialIncidents,
   type Vehicle, type Driver, type VehicleRequest, type Trip, type FuelLog, type MaintenanceRecord, type Incident
 } from '@/data/fleetData';
-import { Car, Wrench, MapPin, Plus, Fuel, Calendar, AlertTriangle, CheckCircle, Clock, X, Users, Route, Shield, Star } from 'lucide-react';
+import { Car, Wrench, MapPin, Plus, Fuel, Calendar, AlertTriangle, CheckCircle, Clock, X, Users, Route, Shield, Star, Pencil, Trash2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import ProcessGuide from '@/components/ProcessGuide';
+import { useAuth } from '@/contexts/AuthContext';
+
+const fleetWorkflowSteps = [
+  { step: 1, title: 'Vehicle Registration & Setup', who: 'Admin', description: 'New vehicles are registered in HRMIS with full details: registration, make, model, insurance, and assigned location.' },
+  { step: 2, title: 'Driver Management', who: 'HR Manager', description: 'Drivers are onboarded, license verified, and assigned to vehicles or vehicle pools.' },
+  { step: 3, title: 'Vehicle Request', who: 'Employee', description: 'Staff submit a vehicle request with trip purpose, date, destination, and estimated duration.' },
+  { step: 4, title: 'Approval Workflow', who: 'Supervisor', description: 'Department manager reviews and approves or rejects the vehicle request.' },
+  { step: 5, title: 'Vehicle Allocation', who: 'Admin', description: 'Fleet admin assigns an available vehicle and driver (if required) to the approved request.' },
+  { step: 6, title: 'Trip Management', who: 'Driver', description: 'Trip details are logged: mileage, start/end times, route, and purpose.' },
+  { step: 7, title: 'Fuel Management', who: 'Driver', description: 'Fuel refills are recorded with receipts, linked to vehicle and trip for cost tracking.' },
+  { step: 8, title: 'Maintenance & Service', who: 'Admin', description: 'Scheduled and unscheduled maintenance is logged, costs tracked, and service history maintained.' },
+  { step: 9, title: 'Incident & Accident Management', who: 'Driver', description: 'Any incidents (accidents, breakdowns, theft) are reported immediately and documented in the system.' },
+  { step: 10, title: 'Return & Closure', who: 'Driver', description: 'Vehicle is returned, mileage recorded, condition checked, and the request is closed.' },
+  { step: 11, title: 'Reporting & Analytics', who: 'Admin', description: 'Fleet utilization, fuel consumption, maintenance costs, and driver performance reports are generated.' },
+];
 
 const statusColor: Record<string, string> = { 'Available': 'badge-active', 'In Use': 'badge-info', 'Maintenance': 'badge-pending', 'Decommissioned': 'badge-rejected' };
 
 export default function FleetManagement() {
+  const { hasRole } = useAuth();
+  const canManage = hasRole('admin', 'hr_manager');
   const [tab, setTab] = useState<'vehicles' | 'drivers' | 'requests' | 'trips' | 'fuel' | 'maintenance' | 'incidents'>('vehicles');
   const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
   const [drivers] = useState<Driver[]>(initialDrivers);
@@ -58,6 +76,18 @@ export default function FleetManagement() {
 
   return (
     <div className="space-y-6">
+      <ProcessGuide
+        title="Fleet Management"
+        description="11-step process from vehicle registration to trip closure and analytics"
+        steps={fleetWorkflowSteps}
+        tips={[
+          'All vehicles must have valid insurance before being approved for trips.',
+          'Fuel receipts must be submitted within 24 hours of purchase.',
+          'Any vehicle accident must be reported to HR and the insurance team immediately.',
+          'Drivers must complete a pre-trip vehicle inspection checklist.',
+          'Mileage logs are used for insurance, tax, and maintenance scheduling.',
+        ]}
+      />
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-card"><div><p className="stat-label">Total Fleet</p><p className="stat-value">{stats.total}</p></div><Car size={22} className="text-muted-foreground" /></div>

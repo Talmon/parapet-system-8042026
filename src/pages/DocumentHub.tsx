@@ -1,6 +1,18 @@
 import { useState } from 'react';
-import { FileText, FolderOpen, Upload, Download, Search, Plus, Trash2, Eye, X, File, Image, FileSpreadsheet, FilePlus } from 'lucide-react';
+import { FileText, FolderOpen, Upload, Download, Search, Plus, Trash2, Eye, X, File, Image, FileSpreadsheet, FilePlus, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+import ProcessGuide from '@/components/ProcessGuide';
+import { useAuth } from '@/contexts/AuthContext';
+
+const documentWorkflowSteps = [
+  { step: 1, title: 'Document Created / Received', who: 'Employee', description: 'A document is created (policy, contract, report) or received from an external party.' },
+  { step: 2, title: 'Categorize & Tag', who: 'HR Manager', description: 'HR categorizes the document, adds metadata tags, and links it to relevant employees or departments.' },
+  { step: 3, title: 'Upload to HRMIS', who: 'HR Manager', description: 'Document is uploaded to the Document Hub with access permissions set appropriately.' },
+  { step: 4, title: 'Review & Approval', who: 'Admin', description: 'For policy or compliance documents, a review and approval workflow is triggered before publishing.' },
+  { step: 5, title: 'Publish & Notify', who: 'System', description: 'Document is published and relevant employees are notified of its availability.' },
+  { step: 6, title: 'Version Control', who: 'HR Manager', description: 'When documents are updated, previous versions are archived and the new version becomes active.' },
+  { step: 7, title: 'Periodic Review', who: 'HR Manager', description: 'Documents are reviewed periodically for relevance, accuracy, and compliance with current regulations.' },
+];
 
 interface Document {
   id: string;
@@ -47,10 +59,13 @@ const typeIcons: Record<string, React.ReactNode> = {
 };
 
 export default function DocumentHub() {
+  const { hasRole } = useAuth();
+  const canManage = hasRole('admin', 'hr_manager');
   const [docs, setDocs] = useState<Document[]>(initialDocs);
   const [activeCategory, setActiveCategory] = useState('All Documents');
   const [search, setSearch] = useState('');
   const [showUpload, setShowUpload] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [uploadForm, setUploadForm] = useState({ name: '', category: 'Policies & Procedures', type: 'PDF' as Document['type'], department: '', description: '', tags: '' });
 
   const filtered = docs.filter(d => {
@@ -93,6 +108,17 @@ export default function DocumentHub() {
 
   return (
     <div className="space-y-6">
+      <ProcessGuide
+        title="Document Hub"
+        description="7-step document lifecycle from creation to periodic review"
+        steps={documentWorkflowSteps}
+        tips={[
+          'All company policies must be approved before uploading to the Document Hub.',
+          'Set appropriate access permissions when uploading sensitive documents.',
+          'Use consistent naming conventions for easy searchability.',
+          'Review and update compliance documents every 6 months.',
+        ]}
+      />
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-card"><div><p className="stat-label">Total Documents</p><p className="stat-value">{stats.total}</p></div><FolderOpen size={22} className="text-muted-foreground" /></div>
@@ -186,7 +212,8 @@ export default function DocumentHub() {
                   <td className="py-3 px-4"><div className="flex items-center justify-center gap-2">
                     <button className="p-1 hover:bg-muted rounded" title="View"><Eye size={16} /></button>
                     <button className="p-1 hover:bg-muted rounded" title="Download" onClick={() => toast.success(`Downloading ${d.name}`)}><Download size={16} /></button>
-                    <button className="p-1 hover:bg-muted rounded text-destructive" title="Delete" onClick={() => handleDelete(d.id)}><Trash2 size={16} /></button>
+                    {canManage && <button className="p-1 hover:bg-muted rounded text-muted-foreground" title="Edit" onClick={() => toast.info('Edit document coming soon')}><Pencil size={16} /></button>}
+                    {canManage && <button className="p-1 hover:bg-destructive/10 rounded text-destructive" title="Delete" onClick={() => setDeleteConfirm(d.id)}><Trash2 size={16} /></button>}
                   </div></td>
                 </tr>
               ))}
@@ -195,6 +222,20 @@ export default function DocumentHub() {
         </div>
         {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No documents found</div>}
       </div>
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50">
+          <div className="bg-card rounded-lg border p-6 w-full max-w-sm text-center">
+            <Trash2 size={32} className="text-destructive mx-auto mb-3" />
+            <h3 className="font-semibold mb-2">Delete Document?</h3>
+            <p className="text-sm text-muted-foreground mb-4">This document will be permanently removed from the Hub.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirm(null)} className="flex-1 px-4 py-2 rounded-md border text-sm">Cancel</button>
+              <button onClick={() => { setDocs(prev => prev.filter(d => d.id !== deleteConfirm)); setDeleteConfirm(null); toast.success('Document deleted'); }} className="flex-1 px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-medium">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
