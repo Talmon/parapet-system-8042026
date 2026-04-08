@@ -106,7 +106,7 @@ function generateEmployees(count: number): Employee[] {
   return employees;
 }
 
-export const employees = generateEmployees(5000);
+export const employees = generateEmployees(1527);
 
 // Derived stats
 export const activeEmployees = employees.filter(e => e.status === 'Active');

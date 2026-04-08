@@ -109,7 +109,7 @@ export default function Login() {
 
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: '5,000+', sub: 'Employees Managed' },
+              { label: '1,527', sub: 'Employees Managed' },
               { label: '14', sub: 'HR Modules' },
               { label: '2', sub: 'Countries' },
               { label: '100%', sub: 'Statutory Compliant' },

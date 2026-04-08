@@ -224,7 +224,7 @@ function getPageTitle(path: string): string {
 function getPageSubtitle(path: string): string {
   const map: Record<string, string> = {
     '/': 'April 2026 · Payroll Period Overview',
-    '/employees': '5,000 employees across all departments',
+    '/employees': '1,527 employees across all departments',
     '/payroll': 'April 2026 Payroll Run',
     '/leave': 'Track and manage employee leave requests',
     '/attendance': 'Daily attendance records and overtime',
