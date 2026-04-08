@@ -103,7 +103,7 @@ export default function Login() {
               Empowering Your<br />Workforce
             </h1>
             <p className="mt-4 text-lg opacity-80" style={{ color: 'hsl(var(--sidebar-fg))' }}>
-              Parapet HRMS — the complete human resource management solution for Kenya, Uganda & Rwanda.
+              Parapet HRMS — the complete human resource management solution for Kenya & Uganda.
             </p>
           </div>
 
@@ -111,7 +111,7 @@ export default function Login() {
             {[
               { label: '5,000+', sub: 'Employees Managed' },
               { label: '14', sub: 'HR Modules' },
-              { label: '4', sub: 'Countries' },
+              { label: '2', sub: 'Countries' },
               { label: '100%', sub: 'Statutory Compliant' },
             ].map(stat => (
               <div key={stat.label} className="rounded-xl p-4 border border-white/10 bg-white/5 backdrop-blur-sm">
