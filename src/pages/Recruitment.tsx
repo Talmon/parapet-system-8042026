@@ -1,97 +1,293 @@
 import { useState } from 'react';
-import { jobPostings, JobPosting } from '@/data/hrData';
-import { Plus, X } from 'lucide-react';
+import {
+  initialRequisitions, initialCandidates, initialInterviews, candidateStages,
+  type Requisition, type Candidate, type InterviewPanel, type CandidateStage
+} from '@/data/recruitmentData';
+import { Plus, X, Users, Briefcase, Clock, CheckCircle, ChevronRight, Star, FileText, Phone, Mail, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+const reqStatusColors: Record<string, string> = {
+  draft: 'badge-pending', pending_approval: 'badge-pending', approved: 'badge-info', sourcing: 'badge-info',
+  interviewing: 'badge-info', offer_stage: 'badge-active', filled: 'badge-active', cancelled: 'badge-rejected',
+};
+
+const kanbanColumns: { key: CandidateStage; label: string; color: string }[] = [
+  { key: 'applied', label: 'Applied', color: 'border-l-slate-400' },
+  { key: 'screening', label: 'Screening', color: 'border-l-blue-400' },
+  { key: 'shortlisted', label: 'Shortlisted', color: 'border-l-cyan-400' },
+  { key: 'interview_scheduled', label: 'Interview', color: 'border-l-indigo-400' },
+  { key: 'interviewed', label: 'Interviewed', color: 'border-l-purple-400' },
+  { key: 'evaluated', label: 'Evaluated', color: 'border-l-violet-400' },
+  { key: 'selected', label: 'Selected', color: 'border-l-amber-400' },
+  { key: 'background_check', label: 'BG Check', color: 'border-l-orange-400' },
+  { key: 'offer_sent', label: 'Offer', color: 'border-l-emerald-400' },
+  { key: 'hired', label: 'Hired', color: 'border-l-green-500' },
+];
+
 export default function Recruitment() {
-  const [jobs, setJobs] = useState<JobPosting[]>(jobPostings);
-  const [tab, setTab] = useState<'postings' | 'pipeline' | 'candidates'>('postings');
-  const [showNew, setShowNew] = useState(false);
+  const [tab, setTab] = useState<'requisitions' | 'pipeline' | 'candidates' | 'interviews'>('requisitions');
+  const [requisitions, setRequisitions] = useState<Requisition[]>(initialRequisitions);
+  const [candidates, setCandidates] = useState<Candidate[]>(initialCandidates);
+  const [interviews] = useState<InterviewPanel[]>(initialInterviews);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [showNewReq, setShowNewReq] = useState(false);
+  const [filterReqId, setFilterReqId] = useState<string>('all');
 
-  const active = jobs.filter(j => j.status === 'active');
-  const totalApplicants = jobs.reduce((s, j) => s + j.applicants, 0);
-  const inPipeline = jobs.filter(j => j.status === 'active').reduce((s, j) => s + j.shortlisted, 0);
-  const avgTime = 23;
+  const activeReqs = requisitions.filter(r => !['filled', 'cancelled', 'draft'].includes(r.status));
+  const totalApplicants = candidates.length;
+  const inPipeline = candidates.filter(c => !['rejected', 'hired'].includes(c.stage)).length;
+  const hired = candidates.filter(c => c.stage === 'hired').length;
 
-  const handlePost = (e: React.FormEvent<HTMLFormElement>) => {
+  const advanceCandidate = (candidateId: string, newStage: CandidateStage) => {
+    setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, stage: newStage } : c));
+    toast.success(`Candidate moved to ${candidateStages.find(s => s.key === newStage)?.label}`);
+    setSelectedCandidate(null);
+  };
+
+  const approveRequisition = (reqId: string) => {
+    setRequisitions(prev => prev.map(r => r.id === reqId ? { ...r, status: 'approved' as const, approvedBy: 'HR Director', approvedDate: '2026-04-08' } : r));
+    toast.success('Requisition approved');
+  };
+
+  const handleNewReq = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const newJob: JobPosting = {
-      id: `JOB-${String(jobs.length + 1).padStart(3, '0')}`,
+    const newReq: Requisition = {
+      id: `REQ-${String(requisitions.length + 1).padStart(3, '0')}`,
       position: fd.get('position') as string,
       department: fd.get('department') as string,
       location: fd.get('location') as string,
-      type: fd.get('type') as string,
-      postedDate: new Date().toISOString().split('T')[0],
-      applicants: 0, shortlisted: 0, interviews: 0,
-      status: 'active',
+      type: fd.get('type') as Requisition['type'],
+      justification: fd.get('justification') as string,
+      requestedBy: 'Current User',
+      approvedBy: null,
+      budgetedSalary: { min: parseInt(fd.get('salaryMin') as string) || 0, max: parseInt(fd.get('salaryMax') as string) || 0 },
+      priority: fd.get('priority') as Requisition['priority'],
+      status: 'pending_approval',
+      createdDate: new Date().toISOString().split('T')[0],
+      approvedDate: null,
+      fillingMethod: fd.get('method') as Requisition['fillingMethod'],
     };
-    setJobs(prev => [newJob, ...prev]);
-    setShowNew(false);
-    toast.success('Job posted successfully');
+    setRequisitions(prev => [newReq, ...prev]);
+    setShowNewReq(false);
+    toast.success('Requisition submitted for approval');
   };
+
+  const filteredCandidates = filterReqId === 'all' ? candidates : candidates.filter(c => c.requisitionId === filterReqId);
+
+  const tabs = [
+    { key: 'requisitions' as const, label: 'Requisitions' },
+    { key: 'pipeline' as const, label: 'Hiring Pipeline' },
+    { key: 'candidates' as const, label: 'Candidates' },
+    { key: 'interviews' as const, label: 'Interviews' },
+  ];
 
   return (
     <div className="space-y-6">
+      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="stat-card"><div><p className="stat-label">Active Openings</p><p className="stat-value">{active.length}</p></div></div>
-        <div className="stat-card"><div><p className="stat-label">Total Applicants</p><p className="stat-value">{totalApplicants}</p></div></div>
-        <div className="stat-card"><div><p className="stat-label">In Pipeline</p><p className="stat-value">{inPipeline}</p></div></div>
-        <div className="stat-card"><div><p className="stat-label">Avg. Time to Hire</p><p className="stat-value">{avgTime} days</p></div></div>
+        <div className="stat-card"><div><p className="stat-label">Active Requisitions</p><p className="stat-value">{activeReqs.length}</p></div><Briefcase size={22} className="text-blue-600" /></div>
+        <div className="stat-card"><div><p className="stat-label">Total Applicants</p><p className="stat-value">{totalApplicants}</p></div><Users size={22} className="text-muted-foreground" /></div>
+        <div className="stat-card"><div><p className="stat-label">In Pipeline</p><p className="stat-value">{inPipeline}</p></div><Clock size={22} className="text-amber-500" /></div>
+        <div className="stat-card"><div><p className="stat-label">Hired</p><p className="stat-value">{hired}</p></div><CheckCircle size={22} className="text-green-600" /></div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex gap-1 border-b">
-          {(['postings', 'pipeline', 'candidates'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === t ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}>
-              {t === 'postings' ? 'Job Postings' : t === 'pipeline' ? 'Hiring Pipeline' : 'Candidates'}
-            </button>
+      {/* Tabs */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex gap-1 border-b overflow-x-auto">
+          {tabs.map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)} className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${tab === t.key ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}>{t.label}</button>
           ))}
         </div>
-        <button onClick={() => setShowNew(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-md border bg-card text-sm font-medium hover:bg-muted">
-          <Plus size={16} /> Post New Job
-        </button>
+        {tab === 'requisitions' && (
+          <button onClick={() => setShowNewReq(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"><Plus size={16} /> Raise Requisition</button>
+        )}
       </div>
 
-      {tab === 'postings' && (
+      {/* REQUISITIONS */}
+      {tab === 'requisitions' && (
         <div className="bg-card rounded-lg border overflow-x-auto">
           <table className="data-table">
-            <thead><tr><th>Position</th><th>Department</th><th>Location</th><th>Applicants</th><th>Shortlisted</th><th>Interviews</th><th>Status</th></tr></thead>
+            <thead><tr><th>Position</th><th>Department</th><th>Priority</th><th>Budget Range</th><th>Method</th><th>Status</th><th>Requested By</th><th>Actions</th></tr></thead>
             <tbody>
-              {jobs.map(j => (
-                <tr key={j.id}>
-                  <td><div><p className="font-medium">{j.position}</p><p className="text-xs text-muted-foreground">{j.type} · Posted {j.postedDate}</p></div></td>
-                  <td>{j.department}</td>
-                  <td>{j.location}</td>
-                  <td className="font-bold">{j.applicants}</td>
-                  <td>{j.shortlisted}</td>
-                  <td>{j.interviews}</td>
-                  <td><span className={j.status === 'active' ? 'badge-active' : j.status === 'closed' ? 'badge-rejected' : 'badge-pending'}>{j.status}</span></td>
+              {requisitions.map(r => (
+                <tr key={r.id}>
+                  <td><div><p className="font-medium">{r.position}</p><p className="text-xs text-muted-foreground">{r.id} · {r.type} · {r.location}</p></div></td>
+                  <td>{r.department}</td>
+                  <td><span className={r.priority === 'urgent' ? 'badge-rejected' : r.priority === 'high' ? 'badge-pending' : 'badge-info'}>{r.priority}</span></td>
+                  <td className="text-sm">KES {(r.budgetedSalary.min / 1000).toFixed(0)}k – {(r.budgetedSalary.max / 1000).toFixed(0)}k</td>
+                  <td className="text-sm">{r.fillingMethod || '—'}</td>
+                  <td><span className={reqStatusColors[r.status]}>{r.status.replace(/_/g, ' ')}</span></td>
+                  <td className="text-sm">{r.requestedBy}</td>
+                  <td>
+                    {r.status === 'pending_approval' && (
+                      <button onClick={() => approveRequisition(r.id)} className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200">Approve</button>
+                    )}
+                    {r.status === 'approved' && (
+                      <button onClick={() => setRequisitions(prev => prev.map(x => x.id === r.id ? { ...x, status: 'sourcing' } : x))} className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200">Start Sourcing</button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-      {tab === 'pipeline' && <div className="bg-card rounded-lg border p-6"><p className="text-muted-foreground">Visual hiring pipeline with drag-and-drop stages.</p></div>}
-      {tab === 'candidates' && <div className="bg-card rounded-lg border p-6"><p className="text-muted-foreground">Candidate database with search and filtering.</p></div>}
 
-      {showNew && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50">
-          <div className="bg-card rounded-lg border p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4"><h3 className="font-semibold">Post New Job</h3><button onClick={() => setShowNew(false)}><X size={20} /></button></div>
-            <form onSubmit={handlePost} className="space-y-4">
-              <div><label className="text-sm font-medium">Position</label><input name="position" required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
-              <div><label className="text-sm font-medium">Department</label><input name="department" required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
+      {/* HIRING PIPELINE (KANBAN) */}
+      {tab === 'pipeline' && (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <select value={filterReqId} onChange={e => setFilterReqId(e.target.value)} className="px-3 py-2 rounded-md border bg-card text-sm">
+              <option value="all">All Positions</option>
+              {requisitions.filter(r => r.status !== 'draft').map(r => <option key={r.id} value={r.id}>{r.position}</option>)}
+            </select>
+          </div>
+          <div className="overflow-x-auto pb-4">
+            <div className="flex gap-3 min-w-[1400px]">
+              {kanbanColumns.map(col => {
+                const colCandidates = filteredCandidates.filter(c => c.stage === col.key);
+                return (
+                  <div key={col.key} className="flex-1 min-w-[140px]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-semibold uppercase text-muted-foreground">{col.label}</span>
+                      <span className="text-xs bg-muted px-1.5 py-0.5 rounded-full">{colCandidates.length}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {colCandidates.map(c => (
+                        <div key={c.id} onClick={() => setSelectedCandidate(c)} className={`bg-card rounded-lg border border-l-4 ${col.color} p-3 cursor-pointer hover:shadow-md transition-shadow`}>
+                          <p className="font-medium text-sm">{c.name}</p>
+                          <p className="text-xs text-muted-foreground">{c.currentRole}</p>
+                          <p className="text-xs text-muted-foreground">{c.currentCompany}</p>
+                          {c.rating && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Star size={10} className="fill-amber-400 text-amber-400" />
+                              <span className="text-xs">{c.rating}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {colCandidates.length === 0 && <div className="text-xs text-muted-foreground text-center py-4 bg-muted/30 rounded-lg border border-dashed">No candidates</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CANDIDATES TABLE */}
+      {tab === 'candidates' && (
+        <div className="bg-card rounded-lg border overflow-x-auto">
+          <table className="data-table">
+            <thead><tr><th>Candidate</th><th>Position</th><th>Source</th><th>Experience</th><th>Stage</th><th>Rating</th><th>Score</th><th>Actions</th></tr></thead>
+            <tbody>
+              {candidates.map(c => {
+                const req = requisitions.find(r => r.id === c.requisitionId);
+                return (
+                  <tr key={c.id}>
+                    <td><div><p className="font-medium">{c.name}</p><p className="text-xs text-muted-foreground">{c.currentCompany} · {c.currentRole}</p></div></td>
+                    <td className="text-sm">{req?.position || c.requisitionId}</td>
+                    <td><span className="badge-info">{c.source}</span></td>
+                    <td>{c.experience} yrs</td>
+                    <td><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted">{candidateStages.find(s => s.key === c.stage)?.label}</span></td>
+                    <td>{c.rating ? <span className="flex items-center gap-1"><Star size={12} className="fill-amber-400 text-amber-400" />{c.rating}</span> : '—'}</td>
+                    <td className="font-bold">{c.interviewScore || '—'}</td>
+                    <td><button onClick={() => setSelectedCandidate(c)} className="text-xs px-2 py-1 rounded border hover:bg-muted">View</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* INTERVIEWS */}
+      {tab === 'interviews' && (
+        <div className="bg-card rounded-lg border overflow-x-auto">
+          <table className="data-table">
+            <thead><tr><th>Candidate</th><th>Position</th><th>Type</th><th>Panel</th><th>Date & Time</th><th>Score</th><th>Recommendation</th><th>Status</th></tr></thead>
+            <tbody>
+              {interviews.map(int => (
+                <tr key={int.id}>
+                  <td className="font-medium">{int.candidateName}</td>
+                  <td className="text-sm">{int.position}</td>
+                  <td><span className="badge-info">{int.type}</span></td>
+                  <td className="text-xs">{int.panelMembers.join(', ')}</td>
+                  <td className="text-sm">{int.scheduledDate} · {int.scheduledTime}</td>
+                  <td className="font-bold">{int.score || '—'}</td>
+                  <td>{int.recommendation ? <span className={int.recommendation.includes('hire') ? 'badge-active' : int.recommendation === 'maybe' ? 'badge-pending' : 'badge-rejected'}>{int.recommendation.replace('_', ' ')}</span> : '—'}</td>
+                  <td><span className={int.status === 'completed' ? 'badge-active' : int.status === 'scheduled' ? 'badge-info' : 'badge-rejected'}>{int.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* CANDIDATE DETAIL MODAL */}
+      {selectedCandidate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4">
+          <div className="bg-card rounded-lg border p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-lg">{selectedCandidate.name}</h3>
+              <button onClick={() => setSelectedCandidate(null)}><X size={20} /></button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2"><Mail size={14} />{selectedCandidate.email}</div>
+              <div className="flex items-center gap-2"><Phone size={14} />{selectedCandidate.phone}</div>
+              <div className="flex items-center gap-2"><Building2 size={14} />{selectedCandidate.currentCompany} — {selectedCandidate.currentRole}</div>
+              <div className="flex items-center gap-2"><FileText size={14} />{selectedCandidate.education}</div>
+              <div><strong>Experience:</strong> {selectedCandidate.experience} years</div>
+              <div><strong>Source:</strong> {selectedCandidate.source}</div>
+              <div><strong>Stage:</strong> <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted">{candidateStages.find(s => s.key === selectedCandidate.stage)?.label}</span></div>
+              {selectedCandidate.interviewScore && <div><strong>Interview Score:</strong> {selectedCandidate.interviewScore}/100</div>}
+              {selectedCandidate.offerAmount && <div><strong>Offer:</strong> KES {selectedCandidate.offerAmount.toLocaleString()} — {selectedCandidate.offerStatus}</div>}
+              <div><strong>Notes:</strong> {selectedCandidate.notes}</div>
+              {/* Stage advancement buttons */}
+              <div className="pt-3 border-t">
+                <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Move to Stage</p>
+                <div className="flex flex-wrap gap-1">
+                  {candidateStages.filter(s => s.key !== selectedCandidate.stage && s.key !== 'rejected').map(s => (
+                    <button key={s.key} onClick={() => advanceCandidate(selectedCandidate.id, s.key)} className="text-xs px-2 py-1 rounded border hover:bg-muted">{s.label}</button>
+                  ))}
+                  <button onClick={() => advanceCandidate(selectedCandidate.id, 'rejected')} className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200">Reject</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW REQUISITION MODAL */}
+      {showNewReq && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4">
+          <div className="bg-card rounded-lg border p-6 w-full max-w-md max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4"><h3 className="font-semibold">Raise New Requisition</h3><button onClick={() => setShowNewReq(false)}><X size={20} /></button></div>
+            <form onSubmit={handleNewReq} className="space-y-3">
+              <div><label className="text-sm font-medium">Position *</label><input name="position" required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
+              <div><label className="text-sm font-medium">Department *</label><input name="department" required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
+              <div><label className="text-sm font-medium">Justification *</label><textarea name="justification" required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" rows={2} /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-sm font-medium">Location</label><input name="location" className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
                 <div><label className="text-sm font-medium">Type</label>
-                  <select name="type" className="w-full mt-1 px-3 py-2 rounded-md border text-sm">
-                    <option>Full-time</option><option>Part-time</option><option>Contract</option><option>Internship</option>
-                  </select>
+                  <select name="type" className="w-full mt-1 px-3 py-2 rounded-md border text-sm"><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Internship</option></select>
                 </div>
               </div>
-              <button type="submit" className="w-full py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium">Post Job</button>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-sm font-medium">Salary Min (KES)</label><input type="number" name="salaryMin" className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
+                <div><label className="text-sm font-medium">Salary Max (KES)</label><input type="number" name="salaryMax" className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-sm font-medium">Priority</label>
+                  <select name="priority" className="w-full mt-1 px-3 py-2 rounded-md border text-sm"><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option><option value="low">Low</option></select>
+                </div>
+                <div><label className="text-sm font-medium">Filling Method</label>
+                  <select name="method" className="w-full mt-1 px-3 py-2 rounded-md border text-sm"><option value="external">External</option><option value="internal">Internal</option><option value="both">Both</option></select>
+                </div>
+              </div>
+              <button type="submit" className="w-full py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium">Submit Requisition</button>
             </form>
           </div>
         </div>
