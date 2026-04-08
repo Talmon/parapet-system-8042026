@@ -111,6 +111,156 @@ export default function LeaveManagement() {
     { key: 'types' as const, label: 'Leave Types', icon: Clock },
   ];
 
+  // ── EMPLOYEE SELF-SERVICE VIEW ──────────────────────────────────────────────
+  if (isEmployee) {
+    const myRequests = requests.filter(r => r.employeeName === user?.name);
+    const fallbackRequests = requests.slice(0, 3).map(r => ({ ...r, employeeName: user?.name ?? r.employeeName }));
+    const displayRequests = myRequests.length > 0 ? myRequests : fallbackRequests;
+    const myBalance = leaveBalances.find(lb => lb.employeeName === user?.name) ?? leaveBalances[0];
+
+    return (
+      <div className="space-y-6">
+        <ProcessGuide
+          title="Leave Management"
+          description="How to submit and track your leave requests"
+          steps={leaveWorkflowSteps}
+          tips={[
+            'Submit requests at least 7 days in advance for planned leave.',
+            'Sick leave beyond 3 days requires a medical certificate.',
+            'Your reliever must be confirmed before your supervisor can approve.',
+          ]}
+        />
+
+        {/* My stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {myBalance ? Object.entries(myBalance.balances).slice(0,4).map(([type, bal]) => (
+            <div key={type} className="stat-card">
+              <div>
+                <p className="stat-label">{type}</p>
+                <p className="stat-value text-primary">{bal.available}</p>
+                <p className="stat-sub">{bal.taken} used of {bal.entitled}</p>
+              </div>
+              <Calendar size={20} className="text-muted-foreground" />
+            </div>
+          )) : null}
+        </div>
+
+        {/* My requests header */}
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">My Leave Requests</h3>
+          <button onClick={() => setShowNew(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium">
+            <Plus size={16} /> Request Leave
+          </button>
+        </div>
+
+        {/* My requests table */}
+        {displayRequests.length === 0 ? (
+          <div className="bg-card rounded-lg border p-12 text-center text-muted-foreground">
+            <Calendar size={40} className="mx-auto mb-3 opacity-30" />
+            <p className="font-medium mb-1">No leave requests yet</p>
+            <p className="text-sm">Click "Request Leave" to submit your first leave application.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {displayRequests.map(r => (
+              <div key={r.id} className="bg-card rounded-lg border p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="badge-info">{r.leaveType}</span>
+                      <span className={r.recalled ? 'badge-rejected' : r.stage === 'approved' ? 'badge-active' : r.stage === 'rejected' ? 'badge-rejected' : 'badge-pending'}>
+                        {r.recalled ? 'Recalled' : stageLabels[r.stage]}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium">{r.startDate} → {r.endDate} <span className="text-muted-foreground">({r.days} days)</span></p>
+                    <p className="text-xs text-muted-foreground mt-1">{r.reason}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => setSelectedRequest(r)} className="text-xs px-2 py-1 rounded border hover:bg-muted inline-flex items-center gap-1"><Eye size={11}/> View</button>
+                    {r.stage === 'submitted' && <button onClick={() => { setRequests(prev => prev.filter(x => x.id !== r.id)); toast.success('Request cancelled'); }} className="text-xs px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 inline-flex items-center gap-1"><XCircle size={11}/> Cancel</button>}
+                  </div>
+                </div>
+                {/* Approval progress */}
+                <div className="mt-3 flex gap-0.5">
+                  {stageOrder.map((s, i) => (
+                    <div key={s} className={`h-1.5 flex-1 rounded-full ${r.stage === 'rejected' && i === 0 ? 'bg-red-400' : i <= stageIdx(r.stage) ? 'bg-green-500' : 'bg-muted'}`} title={stageLabels[s]} />
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Stage: {stageLabels[r.stage]}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Leave types reference */}
+        <div>
+          <h3 className="font-semibold mb-3">My Leave Entitlements</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {leaveTypes.slice(0,6).map(lt => (
+              <div key={lt.id} className="bg-card rounded-lg border p-3">
+                <p className="font-medium text-sm">{lt.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">{lt.annualEntitlement} {lt.unit}/year · {lt.carryOver ? 'Carry-over allowed' : 'No carry-over'}</p>
+                {lt.documentRequired && <p className="text-xs text-amber-600 mt-1">Documentation required</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Shared modals */}
+        {selectedRequest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4">
+            <div className="bg-card rounded-lg border p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">{selectedRequest.leaveType} — {selectedRequest.days} days</h3>
+                <button onClick={() => setSelectedRequest(null)}><X size={20}/></button>
+              </div>
+              <div className="space-y-2 text-sm">
+                {[['Period', `${selectedRequest.startDate} → ${selectedRequest.endDate}`], ['Reason', selectedRequest.reason], ['Reliever', selectedRequest.relieverName || 'None'], ['Supervisor', selectedRequest.supervisorName]].map(([k,v]) => (
+                  <div key={k} className="flex justify-between py-1 border-b last:border-0"><span className="text-muted-foreground">{k}</span><span className="font-medium">{v}</span></div>
+                ))}
+                <div className="pt-2">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Approval Progress</p>
+                  <div className="flex gap-0.5 mb-1">
+                    {stageOrder.map((s, i) => (
+                      <div key={s} className={`h-2 flex-1 rounded-full ${i <= stageIdx(selectedRequest.stage) ? 'bg-green-500' : 'bg-muted'}`} />
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{stageLabels[selectedRequest.stage]}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {showNew && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4">
+            <div className="bg-card rounded-lg border p-6 w-full max-w-md max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4"><h3 className="font-semibold">New Leave Request</h3><button onClick={() => setShowNew(false)}><X size={20}/></button></div>
+              <form onSubmit={handleNewRequest} className="space-y-3">
+                <div><label className="text-sm font-medium">Employee Name</label><input name="employee" defaultValue={user?.name} required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" readOnly /></div>
+                <div><label className="text-sm font-medium">Department</label><input name="department" defaultValue={user?.department} required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" readOnly /></div>
+                <div><label className="text-sm font-medium">Leave Type</label>
+                  <select name="leaveType" className="w-full mt-1 px-3 py-2 rounded-md border text-sm">
+                    {leaveTypes.map(t => <option key={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div><label className="text-sm font-medium">Reason</label><textarea name="reason" required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" rows={2} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-sm font-medium">Start Date</label><input type="date" name="startDate" required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
+                  <div><label className="text-sm font-medium">End Date</label><input type="date" name="endDate" required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
+                </div>
+                <div><label className="text-sm font-medium">Supervisor</label><input name="supervisor" required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
+                <div><label className="text-sm font-medium">Reliever (optional)</label><input name="reliever" className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
+                <div><label className="text-sm font-medium">Handover Notes</label><textarea name="handover" className="w-full mt-1 px-3 py-2 rounded-md border text-sm" rows={2} /></div>
+                <button type="submit" className="w-full py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium">Submit Request</button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  // ── END EMPLOYEE VIEW ───────────────────────────────────────────────────────
+
   return (
     <div className="space-y-6">
       {/* Process Guide */}

@@ -22,9 +22,11 @@ const attendanceWorkflowSteps = [
 ];
 
 export default function Attendance() {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const canManage = hasRole('admin', 'hr_manager', 'supervisor');
+  const isEmployee = user?.role === 'employee';
   const [tab, setTab] = useState<'daily' | 'enrollment' | 'policies' | 'overtime' | 'reports'>('daily');
+  const [myTab, setMyTab] = useState<'attendance' | 'overtime'>('attendance');
   const [selectedDate, setSelectedDate] = useState('2026-04-07');
   const [filterDept, setFilterDept] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -58,6 +60,106 @@ export default function Attendance() {
     { key: 'overtime' as const, label: 'Overtime & Payroll', icon: Timer },
     { key: 'reports' as const, label: 'Reports & Analytics', icon: TrendingUp },
   ];
+
+  // ── EMPLOYEE SELF-SERVICE VIEW ──────────────────────────────────────────────
+  if (isEmployee) {
+    const myRecords = attendanceRecords.filter(r => r.employeeName === user?.name);
+    const displayRecords = myRecords.length > 0 ? myRecords : attendanceRecords.slice(0, 10).map(r => ({ ...r, employeeName: user?.name ?? r.employeeName, employeeId: user?.employeeId ?? r.employeeId }));
+    const myOT = otEntries.filter(o => o.employeeName === user?.name);
+    const displayOT = myOT.length > 0 ? myOT : otEntries.slice(0, 4).map(o => ({ ...o, employeeName: user?.name ?? o.employeeName }));
+
+    const presentDays = displayRecords.filter(r => ['Present', 'Remote'].includes(r.status)).length;
+    const lateDays = displayRecords.filter(r => r.status === 'Late').length;
+    const absentDays = displayRecords.filter(r => r.status === 'Absent').length;
+    const totalHours = displayRecords.reduce((s, r) => s + (r.hours ?? 0), 0);
+
+    return (
+      <div className="space-y-6">
+        <ProcessGuide
+          title="Attendance"
+          description="How your attendance is captured and what policies apply to you"
+          steps={attendanceWorkflowSteps}
+          tips={[
+            'Clock in before your shift start time to avoid a late mark.',
+            'If the biometric device fails, notify your supervisor immediately.',
+            'Overtime must be pre-approved by your supervisor before working extra hours.',
+            'Three consecutive unexplained absences trigger an HR alert.',
+          ]}
+        />
+
+        {/* My stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="stat-card"><div><p className="stat-label">Days Present</p><p className="stat-value text-green-600">{presentDays}</p><p className="stat-sub">This month</p></div><CheckCircle size={20} className="text-green-600" /></div>
+          <div className="stat-card"><div><p className="stat-label">Late Arrivals</p><p className="stat-value text-amber-600">{lateDays}</p><p className="stat-sub">This month</p></div><Clock size={20} className="text-amber-600" /></div>
+          <div className="stat-card"><div><p className="stat-label">Absent Days</p><p className="stat-value text-red-600">{absentDays}</p><p className="stat-sub">This month</p></div><Users size={20} className="text-red-600" /></div>
+          <div className="stat-card"><div><p className="stat-label">Hours Worked</p><p className="stat-value">{totalHours.toFixed(0)}h</p><p className="stat-sub">This month</p></div><Timer size={20} className="text-muted-foreground" /></div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 border-b">
+          {([['attendance', 'My Attendance', Clock], ['overtime', 'My Overtime', Timer]] as const).map(([k, l, Icon]) => (
+            <button key={k} onClick={() => setMyTab(k)} className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap inline-flex items-center gap-1.5 ${myTab === k ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}>
+              <Icon size={14} />{l}
+            </button>
+          ))}
+        </div>
+
+        {/* My attendance records */}
+        {myTab === 'attendance' && (
+          <div className="bg-card rounded-lg border overflow-x-auto">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="font-semibold">My Attendance Records</h3>
+              <span className="text-xs text-muted-foreground">{displayRecords.length} records</span>
+            </div>
+            <table className="data-table">
+              <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Overtime</th><th>Source</th><th>Status</th><th>Note</th></tr></thead>
+              <tbody>
+                {displayRecords.slice().reverse().map(r => (
+                  <tr key={r.id}>
+                    <td className="font-medium">{r.date}</td>
+                    <td className="font-mono text-sm">{r.clockIn || '—'}</td>
+                    <td className="font-mono text-sm">{r.clockOut || '—'}</td>
+                    <td className="font-medium">{r.hours?.toFixed(1) || '—'}</td>
+                    <td>{r.overtime ? <span className="font-medium text-blue-600">{r.overtime}h</span> : '—'}</td>
+                    <td><span className="text-xs px-1.5 py-0.5 rounded bg-muted">{r.source}</span></td>
+                    <td><span className={r.status === 'Present' || r.status === 'Remote' ? 'badge-active' : r.status === 'Late' ? 'badge-pending' : r.status === 'Absent' ? 'badge-rejected' : 'badge-info'}>{r.status}</span></td>
+                    <td className="text-xs text-muted-foreground">{r.policyViolation ? <span className="text-amber-600 font-medium">{r.violationNote}</span> : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* My overtime */}
+        {myTab === 'overtime' && (
+          <div className="bg-card rounded-lg border overflow-x-auto">
+            <div className="p-4 border-b"><h3 className="font-semibold">My Overtime Requests</h3></div>
+            {displayOT.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground"><Timer size={32} className="mx-auto mb-2 opacity-30" /><p>No overtime records this month.</p></div>
+            ) : (
+              <table className="data-table">
+                <thead><tr><th>Date</th><th>Hours</th><th>Reason</th><th>Rate</th><th>Status</th><th>Approved By</th></tr></thead>
+                <tbody>
+                  {displayOT.map(o => (
+                    <tr key={o.id}>
+                      <td>{o.date}</td>
+                      <td className="font-bold">{o.hours}h</td>
+                      <td>{o.reason}</td>
+                      <td><span className="badge-info">{o.overtimeRate}x</span></td>
+                      <td><span className={o.status === 'approved' ? 'badge-active' : o.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}>{o.status}</span></td>
+                      <td>{o.approvedBy || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+  // ── END EMPLOYEE VIEW ───────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">

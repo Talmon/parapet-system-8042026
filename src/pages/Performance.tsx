@@ -38,9 +38,11 @@ const decisionIcons: Record<string, React.ReactNode> = {
 };
 
 export default function Performance() {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const canManage = hasRole('admin', 'hr_manager', 'supervisor');
+  const isEmployee = user?.role === 'employee';
   const [tab, setTab] = useState<'pipeline' | 'goals' | 'appraisals' | 'checkins' | 'pips'>('pipeline');
+  const [selfTab, setSelfTab] = useState<'appraisal' | 'targets' | 'checkins' | 'selfassess'>('appraisal');
   const [appraisals, setAppraisals] = useState<Appraisal[]>(initialAppraisals);
   const [pips, setPips] = useState<PIP[]>(initialPIPs);
   const [selectedAppraisal, setSelectedAppraisal] = useState<Appraisal | null>(null);
@@ -72,6 +74,150 @@ export default function Performance() {
     { key: 'checkins' as const, label: 'Check-ins' },
     { key: 'pips' as const, label: 'PIPs' },
   ];
+
+  // ── EMPLOYEE SELF-SERVICE VIEW ──────────────────────────────────────────────
+  if (isEmployee) {
+    const myAppraisal = appraisals.find(a => a.employeeName === user?.name) || appraisals[0];
+    const myTargets = individualTargets.filter(t => t.employeeId === user?.employeeId).slice(0, 5);
+    const fallbackTargets = individualTargets.slice(0, 5);
+    const targets = myTargets.length > 0 ? myTargets : fallbackTargets;
+    const myCheckIns = checkIns.filter(c => c.employeeName === user?.name);
+    const fallbackCheckIns = checkIns.slice(0, 3);
+    const displayCheckIns = myCheckIns.length > 0 ? myCheckIns : fallbackCheckIns;
+
+    return (
+      <div className="space-y-6">
+        <ProcessGuide
+          title="Performance Management"
+          description="Understand the quarterly review process and what's expected of you"
+          steps={performanceWorkflowSteps}
+          tips={[
+            'Complete your self-assessment honestly — it carries significant weight.',
+            'Discuss your targets with your supervisor in Week 1 of each quarter.',
+            'Raise any concerns about your targets or workload during check-ins.',
+          ]}
+        />
+
+        {/* My performance snapshot */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="stat-card"><div><p className="stat-label">My Rating</p><p className="stat-value">{myAppraisal?.selfRating?.toFixed(1) ?? '—'}/5.0</p><p className="stat-sub">Self assessment</p></div><Star size={20} className="text-amber-500" /></div>
+          <div className="stat-card"><div><p className="stat-label">Manager Rating</p><p className="stat-value">{myAppraisal?.managerRating?.toFixed(1) ?? 'Pending'}</p><p className="stat-sub">Q1 2026</p></div><Star size={20} className="text-blue-500" /></div>
+          <div className="stat-card"><div><p className="stat-label">Goals Completed</p><p className="stat-value">{targets.filter(t => t.status === 'completed' || t.status === 'exceeded').length}/{targets.length}</p></div><CheckCircle size={20} className="text-green-600" /></div>
+          <div className="stat-card"><div><p className="stat-label">Appraisal Stage</p><p className="stat-value text-sm">{appraisalStages.find(s => s.key === myAppraisal?.stage)?.label ?? '—'}</p></div><ArrowRight size={20} className="text-primary" /></div>
+        </div>
+
+        {/* Self tabs */}
+        <div className="flex gap-1 border-b">
+          {([['appraisal', 'My Appraisal'], ['targets', 'My Targets'], ['checkins', 'My Check-ins'], ['selfassess', 'Self-Assessment']] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setSelfTab(k)} className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${selfTab === k ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}>{l}</button>
+          ))}
+        </div>
+
+        {/* My appraisal */}
+        {selfTab === 'appraisal' && myAppraisal && (
+          <div className="bg-card rounded-xl border p-6 space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-semibold text-lg">{myAppraisal.employeeName}</h3>
+                <p className="text-sm text-muted-foreground">{myAppraisal.department} · {myAppraisal.id} · Q1 2026</p>
+              </div>
+              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${appraisalStages.find(s=>s.key===myAppraisal.stage)?.color} text-white`}>
+                {appraisalStages.find(s=>s.key===myAppraisal.stage)?.label}
+              </span>
+            </div>
+            {/* Progress pipeline */}
+            <div>
+              <p className="text-xs text-muted-foreground mb-2 font-semibold uppercase tracking-wide">Review Progress</p>
+              <div className="flex gap-1">
+                {appraisalStages.map((s, i) => (
+                  <div key={s.key} className="flex-1 flex flex-col items-center gap-1">
+                    <div className={`h-2 w-full rounded-full ${i <= stageIndex(myAppraisal.stage) ? s.color : 'bg-muted'}`} />
+                    <span className="text-[9px] text-center text-muted-foreground leading-tight hidden sm:block">{s.label.split(' ')[0]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="bg-muted/30 rounded-lg p-3"><p className="text-xs text-muted-foreground mb-1">Self Assessment Score</p><p className="font-bold text-lg">{myAppraisal.selfRating ?? '—'}/5.0</p></div>
+              <div className="bg-muted/30 rounded-lg p-3"><p className="text-xs text-muted-foreground mb-1">Manager Evaluation</p><p className="font-bold text-lg">{myAppraisal.managerRating ?? 'Pending'}{myAppraisal.managerRating ? '/5.0' : ''}</p></div>
+            </div>
+            {myAppraisal.managerComments && <div className="bg-blue-50 border border-blue-200 rounded-lg p-3"><p className="text-xs font-semibold text-blue-700 mb-1">Manager Comments</p><p className="text-sm text-blue-800">{myAppraisal.managerComments}</p></div>}
+            {myAppraisal.decision && myAppraisal.decision !== 'pending' && (
+              <div className={`rounded-lg p-3 border ${myAppraisal.decision === 'reward' || myAppraisal.decision === 'promotion' ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                <p className="text-xs font-semibold mb-1">{myAppraisal.decision === 'reward' ? '🏆 Performance Reward' : myAppraisal.decision === 'promotion' ? '🚀 Promotion' : myAppraisal.decision === 'pip' ? '⚠ Performance Improvement Plan' : '📚 Training Recommended'}</p>
+                <p className="text-sm">Decision recorded by HR. Your manager will discuss next steps with you.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* My targets */}
+        {selfTab === 'targets' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">My Individual Targets — Q1 2026</h3>
+              <span className="text-sm text-muted-foreground">{targets.filter(t=>t.status==='completed'||t.status==='exceeded').length}/{targets.length} completed</span>
+            </div>
+            {targets.map(t => (
+              <div key={t.id} className="bg-card rounded-lg border p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div><p className="font-medium">{t.title}</p><p className="text-xs text-muted-foreground mt-0.5">{t.description}</p></div>
+                  <span className={t.status==='completed'||t.status==='exceeded' ? 'badge-active' : t.status==='behind' ? 'badge-rejected' : 'badge-pending'}>{t.status}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-muted-foreground">Progress:</span>
+                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${t.status==='completed'||t.status==='exceeded'?'bg-green-500':t.status==='behind'?'bg-red-500':'bg-primary'}`} style={{width:`${Math.min(100,(t.actual/t.target)*100)}%`}} />
+                  </div>
+                  <span className="font-medium">{t.actual}/{t.target} {t.unit}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* My check-ins */}
+        {selfTab === 'checkins' && (
+          <div className="space-y-3">
+            <h3 className="font-semibold">My Check-in History</h3>
+            {displayCheckIns.map(c => (
+              <div key={c.id} className="bg-card rounded-lg border p-4">
+                <div className="flex justify-between mb-1">
+                  <p className="font-medium text-sm">{c.date} — {c.type} Check-in</p>
+                  <span className={c.status === 'completed' ? 'badge-active' : 'badge-pending'}>{c.status}</span>
+                </div>
+                {c.notes && <p className="text-sm text-muted-foreground">{c.notes}</p>}
+                {c.actionItems?.length > 0 && <div className="mt-2 space-y-1">{c.actionItems.map((item: string, i: number) => <p key={i} className="text-xs text-muted-foreground flex items-center gap-1"><span className="text-primary">•</span>{item}</p>)}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Self assessment form */}
+        {selfTab === 'selfassess' && (
+          <div className="bg-card rounded-xl border p-6 space-y-4">
+            <h3 className="font-semibold">Q1 2026 Self-Assessment</h3>
+            <p className="text-sm text-muted-foreground">Rate your own performance for Q1 2026. Be honest and specific — this is reviewed alongside your manager's evaluation.</p>
+            <div className="space-y-4">
+              {['Achievement of Targets', 'Quality of Work', 'Teamwork & Collaboration', 'Initiative & Innovation', 'Attendance & Punctuality'].map((criterion, i) => (
+                <div key={criterion}>
+                  <div className="flex justify-between mb-1"><label className="text-sm font-medium">{criterion}</label><span className="text-xs text-muted-foreground">Rate 1–5</span></div>
+                  <div className="flex gap-2">
+                    {[1,2,3,4,5].map(n => (
+                      <button key={n} className="h-9 w-9 rounded-lg border hover:bg-primary hover:text-primary-foreground text-sm font-medium transition-colors">{n}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div><label className="text-sm font-medium">Overall Comments</label><textarea className="w-full mt-1 px-3 py-2 rounded-md border text-sm" rows={3} placeholder="Describe your key achievements, challenges, and areas for growth..." /></div>
+              <button onClick={() => toast.success('Self-assessment submitted successfully')} className="w-full py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium">Submit Self-Assessment</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  // ── END EMPLOYEE VIEW ───────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">

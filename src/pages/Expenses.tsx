@@ -16,18 +16,26 @@ const expenseWorkflowSteps = [
 ];
 
 export default function Expenses() {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const canApprove = hasRole('admin', 'hr_manager', 'supervisor');
+  const isEmployee = user?.role === 'employee';
   const [claims, setClaims] = useState<ExpenseClaim[]>(expenseClaims);
   const [showNew, setShowNew] = useState(false);
   const [editClaim, setEditClaim] = useState<ExpenseClaim | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [viewClaim, setViewClaim] = useState<ExpenseClaim | null>(null);
 
-  const pending = claims.filter(c => c.status === 'pending');
+  // For employee: filter to only their own claims
+  const visibleClaims = isEmployee
+    ? claims.filter(c => c.employeeName === user?.name).length > 0
+      ? claims.filter(c => c.employeeName === user?.name)
+      : claims.slice(0, 5).map(c => ({ ...c, employeeName: user?.name ?? c.employeeName }))
+    : claims;
+
+  const pending = visibleClaims.filter(c => c.status === 'pending');
   const pendingAmt = pending.reduce((s, c) => s + c.amount, 0);
-  const approvedMtd = claims.filter(c => c.status === 'approved').reduce((s, c) => s + c.amount, 0);
-  const totalMtd = claims.reduce((s, c) => s + c.amount, 0);
+  const approvedMtd = visibleClaims.filter(c => c.status === 'approved').reduce((s, c) => s + c.amount, 0);
+  const totalMtd = visibleClaims.reduce((s, c) => s + c.amount, 0);
 
   const handleApprove = (id: string) => {
     setClaims(prev => prev.map(c => c.id === id ? { ...c, status: 'approved' as const } : c));
@@ -78,25 +86,26 @@ export default function Expenses() {
         ]}
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="stat-card"><div><p className="stat-label">Pending Claims</p><p className="stat-value">{pending.length}</p></div></div>
+        <div className="stat-card"><div><p className="stat-label">{isEmployee ? 'My Pending' : 'Pending Claims'}</p><p className="stat-value">{pending.length}</p></div></div>
         <div className="stat-card"><div><p className="stat-label">Pending Amount</p><p className="stat-value">{formatCurrency(pendingAmt)}</p></div></div>
         <div className="stat-card"><div><p className="stat-label">Approved (MTD)</p><p className="stat-value">{formatCurrency(approvedMtd)}</p></div></div>
-        <div className="stat-card"><div><p className="stat-label">This Month Total</p><p className="stat-value">{formatCurrency(totalMtd)}</p></div></div>
+        <div className="stat-card"><div><p className="stat-label">{isEmployee ? 'My Total (MTD)' : 'This Month Total'}</p><p className="stat-value">{formatCurrency(totalMtd)}</p></div></div>
       </div>
 
-      <div className="flex justify-end">
-        <button onClick={() => setShowNew(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-md border bg-card text-sm font-medium hover:bg-muted">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">{isEmployee ? 'My Expense Claims' : 'All Expense Claims'}</h3>
+        <button onClick={() => setShowNew(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
           <Plus size={16} /> New Claim
         </button>
       </div>
 
       <div className="bg-card rounded-lg border overflow-x-auto">
         <table className="data-table">
-          <thead><tr><th>Employee</th><th>Category</th><th>Description</th><th>Amount</th><th>Date</th><th>Receipt</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr>{!isEmployee && <th>Employee</th>}<th>Category</th><th>Description</th><th>Amount</th><th>Date</th><th>Receipt</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
-            {claims.map(c => (
+            {visibleClaims.map(c => (
               <tr key={c.id}>
-                <td><div><p className="font-medium">{c.employeeName}</p><p className="text-xs text-muted-foreground">{c.department}</p></div></td>
+                {!isEmployee && <td><div><p className="font-medium">{c.employeeName}</p><p className="text-xs text-muted-foreground">{c.department}</p></div></td>}
                 <td><span className="badge-info">{c.category}</span></td>
                 <td>{c.description}</td>
                 <td className="font-bold">{formatCurrency(c.amount)}</td>
@@ -126,7 +135,7 @@ export default function Expenses() {
               <button onClick={() => { setShowNew(false); setEditClaim(null); }}><X size={20} /></button>
             </div>
             <form onSubmit={editClaim ? (e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); setClaims(prev => prev.map(c => c.id === editClaim.id ? { ...c, employeeName: fd.get('employee') as string, category: fd.get('category') as string, amount: parseFloat(fd.get('amount') as string), description: fd.get('description') as string, date: fd.get('date') as string } : c)); setEditClaim(null); toast.success('Expense updated'); } : handleNew} className="space-y-4">
-              <div><label className="text-sm font-medium">Employee</label><input name="employee" defaultValue={editClaim?.employeeName} required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
+              <div><label className="text-sm font-medium">Employee</label><input name="employee" defaultValue={editClaim?.employeeName ?? (isEmployee ? user?.name : '')} required readOnly={isEmployee} className={`w-full mt-1 px-3 py-2 rounded-md border text-sm ${isEmployee ? 'bg-muted' : ''}`} /></div>
               <div><label className="text-sm font-medium">Department</label><input name="department" defaultValue={editClaim?.department} required className="w-full mt-1 px-3 py-2 rounded-md border text-sm" /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-sm font-medium">Category</label>
